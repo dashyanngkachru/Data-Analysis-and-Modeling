@@ -1,0 +1,730 @@
+---
+title: "Final Project Report"
+author: "Dashyanng Kachru"
+date: "12/12/2019"
+output: html_document
+---
+
+# Dataset variables (1000 births):   
+ 
+dad_age : age of father of baby (years)    
+mom_age : age of mother of baby (years)    
+maturity : classify mother as of advanced maternal age or not (advanced / younger)  
+len_preg : length of pregnancy (weeks)  
+is_premie : classify baby as either premature or full-term (premie / fullterm)  
+num_visits : number of visits to hospital during pregnancy  
+marital : marital status of mother at time of birth (married / unmarried)   
+mom_wt_gain : mother's weight gain during pregnancy (pounds)  
+bwt : birth weight of baby (pounds)  
+low_bwt : classify baby as either low birthweight or not (low / notlow)  
+sex : sex of baby (female / male) 
+smoke : smoking status of mother (smoker / nonsmoker)  
+mom_white : classify mother as either white or not (white / nonwhite)  
+mom_age_level : age level of mother of baby (teens, early20s, late20s, early30s, 35+)  
+
+```{r}
+library(car) 
+library("pwr")
+library(pscl)
+```
+
+# Loading data:
+```{r}
+setwd("C:/Users/DELL/Desktop/HS 631 - Statistical Computing")
+load(file = "births.Rdat")
+```
+
+# Exploratory Data Analysis:
+
+Checking if data needs to be cleaned:
+```{r}
+summary(births)
+```
+
+Cleaning data i.e. setting impossible values to NA:
+```{r}
+births$dad_age[births$dad_age == 999] <- NA
+births$len_preg[births$len_preg == 999] <- NA
+births$num_visits[births$num_visits == 999] <- NA
+births$mom_wt_gain[births$mom_wt_gain == 999] <- NA
+births$is_premie[births$is_premie == "unknown"] <- NA
+births$marital[births$marital == "unknown"] <- NA
+births$smoke[births$smoke == "unknown"] <- NA
+births$mom_white[births$mom_white == "unknown"] <- NA
+```
+
+Reordering levels of variables and Renaming level advnced to advanced in maturity variable:
+```{r}
+levels(births$maturity)[levels(births$maturity)=="advnced"] <- "advanced"
+maturity_level <- c("younger","advanced")
+births$maturity <- factor(births$maturity, levels = maturity_level)
+is_premie_level <- c("fullterm","premie")
+births$is_premie <- factor(births$is_premie, levels = is_premie_level)
+low_bwt_level <- c("notlow","low")
+births$low_bwt <- factor(births$low_bwt, levels = low_bwt_level)
+smoke_level <- c("nonsmoker","smoker")
+births$smoke <- factor(births$smoke, levels = smoke_level)
+lev <- c("teens","early20s","late20s","early30s","35+")
+births$mom_age_level <- factor(births$mom_age_level, levels = lev)
+```
+
+Dropping unused levels:
+```{r}
+births$marital <- droplevels(births$marital)
+births$mom_white <- droplevels(births$mom_white)
+```
+
+# Cleaned data:
+```{r}
+summary(births)
+```
+
+Correlation between variables using ranks for factor variables:
+```{r}
+births_numeric <- births[,c(1,2,4,6,8,9)]
+births_numeric$maturity <- as.numeric(births$maturity)
+births_numeric$is_premie <- as.numeric(births$is_premie, levels = is_premie_level)
+births_numeric$low_bwt <- as.numeric(births$low_bwt)
+births_numeric$smoke <- as.numeric(births$smoke, levels = smoke_level)
+births_numeric$mom_age_level <- as.numeric(births$mom_age_level, levels = lev)
+births_numeric$marital <- as.numeric(births$marital, levels = levels(births$marital))
+births_numeric$mom_white <- as.numeric(births$mom_white, levels = levels(births$mom_white))
+births_numeric$sex <- as.numeric(births$sex, levels = levels(births$sex))
+
+c <- cor(births_numeric, use= "pairwise.complete.obs", method = "spearman")
+c
+```
+
+mom_age and mom_age_level variables have a correlation of 0.974049888  
+bwt and low_bwt variables have a correlation of -0.5441694  
+mom_age and dad_age variables have a high correlation of 0.794262548  
+is_premie and len_preg variable have a high correlation of -0.630651495  
+
+# Data Visualization:
+```{r}
+library(corrplot)
+corrplot(c)
+```
+
+# Univariate distribution:
+```{r}
+library("ggplot2")
+g <- ggplot(births, aes(x=dad_age))
+g + geom_histogram(binwidth = 3, color="cyan") +
+  ggtitle("Distribution of dad_age variable") +
+  xlab("Age of father of baby (years)") + ylab("Count")
+```
+
+Age of father of baby has the highest count for ages between 32-35years in this dataset.
+```{r}
+
+g1 <- ggplot(births, aes(x=mom_age))
+g1 + geom_histogram(binwidth = 3, color="red") +
+  ggtitle("Distribution of mom_age variable") +
+  xlab("Age of mother of baby (years)") + ylab("Count")
+```
+
+Age of mother of baby has the highest count for ages between 20-23years in this datasest.
+```{r}
+
+g2 <- ggplot(births, aes(x=maturity))
+g2 + geom_bar(color="cyan") +
+  ggtitle("Distribution of maturity variable") +
+  xlab("Classifying mother as of advanced maternal age or not") + ylab("Count")
+```
+
+Mother generally tend to be of younger maternal age for this dataset with a count of around 800 in this dataset.
+```{r}
+
+g3 <- ggplot(births, aes(x=len_preg))
+g3 + geom_histogram(binwidth = 2, color="purple") +
+  ggtitle("Distribution of len_preg variable") +
+  xlab("Length of pregnancy (weeks)") + ylab("Count")
+```
+
+Length of pregnancy (weeks) has the highest count for 37-39 weeks for this datsest.
+```{r}
+
+g4 <- ggplot(births, aes(x=is_premie))
+g4 + geom_bar(color="cyan") +
+  ggtitle("Distribution of is_premie variable") +
+  xlab("Classifying baby as either premature or full-term") + ylab("Count")
+```
+
+In this dataset, babies are mostly full term (800 out of 1000).
+```{r}
+
+g5 <- ggplot(births, aes(x=num_visits))
+g5 + geom_histogram(binwidth = 2, color="red") +
+  ggtitle("Distribution of num_visits variable") +
+  xlab("Number of visits to hospital during pregnancy") + ylab("Count")
+```
+
+Number of visits to hospital during pregnancy is around 10-15 for most of the mothers having the baby in this dataset.
+```{r}
+
+g6 <- ggplot(births, aes(x=marital))
+g6 + geom_bar(color="cyan") +
+  ggtitle("Distribution of marital variable") +
+  xlab("Marital status of mother at time of birth") + ylab("Count")
+```
+
+Mother at time of birth tend to be married more than unmarried for this dataset.
+```{r}
+
+g7 <- ggplot(births, aes(x=mom_wt_gain))
+g7 + geom_histogram(binwidth = 7, color="purple") +
+  ggtitle("Distribution of mom_wt_gain variable") +
+  xlab("Mother's weight gain during pregnancy (pounds)") + ylab("Count")
+```
+
+Mothers gaining 25-30 pounds during pregnancy have the highest count for this dataset.
+```{r}
+
+g8 <- ggplot(births, aes(x=bwt))
+g8 + geom_histogram(binwidth = 1, color="cyan") +
+  ggtitle("Distribution of bwt variable") +
+  xlab("Birth weight of baby (pounds)") + ylab("Count")
+```
+
+Babies with birth weight 6.5-7.5 pounds have the highest count for this dataset.
+```{r}
+
+g9 <- ggplot(births, aes(x=low_bwt))
+g9 + geom_bar(color="red") +
+  ggtitle("Distribution of low_bwt variable") +
+  xlab("Classifying baby as either low birthweight or not") + ylab("Count")
+```
+
+Babies tend not to have a low birth weight in this dataset (around 800 out of 1000). 
+```{r}
+
+g10 <- ggplot(births, aes(x=sex))
+g10 + geom_bar(color="orange") +
+  ggtitle("Distribution of sex variable") +
+  xlab("Sex of baby") + ylab("Count")
+```
+
+There are almost as many male in this dataset as there are female.
+```{r}
+
+g11 <- ggplot(births, aes(x=smoke))
+g11 + geom_bar(color="red") +
+  ggtitle("Distribution of smoke variable") +
+  xlab("Smoking status of mother") + ylab("Count")
+```
+
+This dataset has a majority of non smoking mother rather than smoking mothers (800 out of 1000).
+```{r}
+
+g12 <- ggplot(births, aes(x=mom_white))
+g12 + geom_bar(color="cyan") +
+  ggtitle("Distribution of mom_white variable") +
+  xlab("Classifying mother as either white or not") + ylab("Count")
+```
+
+For this dataset, white mother has the highest count (700 out of 1000).
+```{r}
+
+g13 <- ggplot(births, aes(x=mom_age_level))
+g13 + geom_bar(color="purple") +
+  ggtitle("Distribution of mom_age_level variable") +
+  xlab("Age level of mother of baby (years)") + ylab("Count")
+```
+
+Early 20s age level has the highest count for age level of mother of baby followed by late 20s, early 30s, 35+, teens respectively.
+
+# Bivariate Distribution:
+```{r}
+g14 <- ggplot(births)
+g14 + geom_density(aes(x=bwt, color=smoke))+
+  ggtitle("Distribution of bwt variable with respect to smoking status of mother") +
+  xlab("Birthweight of baby (pounds)") + ylab("Count")
+```
+
+Non smoking mothers tend to give birth to babies with birtweight (pounds) slightly higher than smoking mothers on average for this dataset.
+```{r}
+
+g15 <- ggplot(births)
+g15 + geom_boxplot(aes(x=factor(mom_age_level), y=bwt)) + 
+  ggtitle("Distribution of mom_age_level and bwt variable") +
+  xlab("Age level of mother of baby (years)") + ylab("Birthweight of baby (pounds)")
+```
+
+Median birthweight of baby for teens is the lowest while for late20s is the highest for this dataset. On average, 75th percentile of each level of mother's age have around the same birthweight of baby (pounds) for this dataset.
+```{r}
+
+g16 <- ggplot(births)
+g16 + geom_bar(aes(x=factor(mom_white), fill=low_bwt), position = "dodge") + 
+  ggtitle("Distribution of mom_white and low_bwt variable") +
+  xlab("Mother as either white or not") + ylab("Count")
+```
+
+Count for White mothers giving birth to low birthweight baby (pounds) is higher than for nonwhite mother for this dataset. 
+
+# Trivariate Distribution:
+```{r}
+g17 <- ggplot(births)
+g17 + geom_point(aes(x=bwt, y= mom_wt_gain,color=factor(maturity))) + 
+  ggtitle("Distribution of mom_wt_gain and bwt variable with respect to maturity variable") +
+  xlab("Birthweight of baby (pounds)") + ylab("Mother's weight gain during pregnancy (pounds)")
+```
+
+Mother's weight gain during pregnancy (pounds) tends to be slightly higher on average, for younger mothers than for the advanced mothers, for the same birthweight of baby (pounds), for this dataset.
+```{r}
+
+g18 <- ggplot(births)
+g18 + geom_point(aes(x=bwt, y=num_visits, color=factor(is_premie))) +
+  ggtitle("Distribution of bwt and num_visits variable") +
+  xlab("Birthweight of baby (pounds)") + ylab("Number of visits to hospital during pregnancy")
+```
+
+Premature babies tend to have lesser birtweight of baby (pounds) which is usually observed. On average, mother of premature babies tend to have lesser number of visits to hospital during pregnancy than mother of fullterm babies for this dataset.
+
+# Statistical Tests (Significance level = 0.05):
+
+# T-test:
+```{r}
+
+t.test(births$bwt ~ births$smoke)
+```
+
+With a p-value equal to 0.01945, there is sufficient evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: There is no difference in true means of birthweight of baby (pounds) due to smoking or non smoking mother  
+Alternate Hypothesis: There is difference in true means of birthweight of baby (pounds) due to smoking or non smoking mother  
+```{r}
+
+t.test(births$len_preg ~ births$low_bwt)
+```
+
+With a p-value equal to < 2.2e-16, there is sufficient evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: There is no difference in true means of length of pregnancy (weeks) (len_preg variable) due to notlow or low birthweight of baby (low_bwt variable)  
+Alternate Hypothesis: There is difference in true means of length of pregnancy (weeks) (len_preg variable) due to notlow or low birthweight of baby (low_bwt variable)   
+```{r}
+
+t.test(births$mom_wt_gain ~ births$smoke)
+```
+
+With a p-value equal to 0.2233, there is not sufficient evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: There is no difference in true means of mother's weight gain during pregnancy (pounds) due to whether mother of baby smokes or not.  
+Alternate Hypothesis: There is difference in true means of mother's weight gain during pregnancy (pounds) due to whether mother of baby smokes or not.  
+
+Power test for the above t-test:
+```{r}
+
+pwr.t2n.test(n1=873, n2=126, d = .2, sig.level = .05)
+```
+
+Since power equals to 0.5543761, there is 55.43% probability of finding a small effect if it is there because of smoking status of mother due to random sampling alone and that explains why we did not find enough evidence to reject the null hypothesis.
+```{r}
+
+pwr.t2n.test(n1=873, n2=126, d = .5, sig.level = .05)
+```
+
+Since power equals to 0.9994839, there is 99.94% probability of finding a medium size effect if it is there because of smoking status of mother due to random sampling alone.
+```{r}
+
+pwr.t2n.test(n1=873, n2=126, d = .8, sig.level = .05)
+```
+
+Since power equals to 1, there is 100% probability of finding a large size effect if it is there because of smoking status of mother due to random sampling alone.
+
+# ANOVA:
+```{r}
+
+summary(aov(births$mom_wt_gain ~ births$mom_age_level))
+```
+
+With a p-value equal to 0.54, there is not sufficient evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: All true means of mother's weight gain during pregnancy (pounds) for different mom age levels is same  
+Alternate Hypothesis: Atleast one true mean of mother's weight gain during pregnancy (pounds) for different mom age levels is different
+
+We could do power test to see if there really is an effect to be detected in the sample.
+```{r}
+
+summary(aov(births$bwt ~ births$mom_age_level))
+```
+
+With a p-value equal to 0.165, there is not sufficient evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: All true means of birth weight of baby (pounds) for different mom age levels is same  
+Alternate Hypothesis: Atleast one true mean of birth weight of baby (pounds) for different mom age levels is different  
+
+We could do power test to see if there really is an effect to be detected in the sample.  
+
+# Wilcoxon-Mann Whitney test:
+```{r}
+
+wilcox.test(births_numeric$mom_age_level ~ births_numeric$smoke)
+```
+
+With a p-value equal to 0.001428 there is sufficient evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null hypothesis: True median age for non smoking mothers is not different from true median age for smoking mothers.  
+Alternate Hypothesis: True median age for non smoking mothers is different from true median age for smoking mothers.     
+```{r}
+
+wilcox.test(births_numeric$mom_age_level ~ births_numeric$is_premie)
+```
+
+With a p-value equal to 0.733 there is not sufficient evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null hypothesis: True median age of mothers giving birth to premature babies is not different from true median age of mothers giving birth to fullterm babies  
+Alternate Hypothesis: True median age of mothers giving birth to premature babies is different from true median age of mothers giving birth to fullterm babies  
+
+We could do power test to see if there really is an effect to be detected in the sample.
+```{r}
+
+wilcox.test(births_numeric$mom_age_level ~ births_numeric$low_bwt)
+```
+
+With a p-value equal to 0.9506 there is not sufficient evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null hypothesis: True median age of mothers giving birth to babies with low birthweight (pounds) is not different from true median age of mothers giving birth to babies with not low birthweight (pounds)  
+Alternate Hypothesis: True median age of mothers giving birth to babies with low birthweight (pounds) is different from true median age of mothers giving birth to babies with not low birthweight (pounds)   
+
+We could do power test to see if there really is an effect to be detected in the sample.
+
+# Chi-square test:
+```{r}
+
+chisq.test(table(births$mom_white, births$is_premie))
+```
+
+With a p-value equal to 0.01765, there is enough evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: mom_white and is_premie variables are independent  
+Alternate Hypothesis: mom_white and is_premie variables are not independent  
+
+```{r}
+
+chisq.test(table(births$low_bwt, births$mom_white))
+```
+
+With a p-value equal to p-value = 0.01489, there is enough evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: low_bwt and mom_white variables are independent  
+Alternate Hypothesis: low_bwt and mom_white variables are not independent  
+```{r}
+
+chisq.test(table(births$maturity, births$smoke))
+```
+
+With a p-value equal to p-value = 0.1474, there is not enough evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: Maturity and smoke variables are independent  
+Alternate Hypothesis: Maturity and smoke variables are not independent  
+
+Power test for the above chi square test:
+```{r}
+
+cohen.ES(test = "chisq", size = "small")
+pwr.chisq.test(w = 0.1, power = 0.9, df = 1, sig.level = 0.05)
+```
+
+With N=1050.742, we would need a slightly bigger sample size for detecting a small effect if it is there through random sampling alone.
+```{r}
+
+cohen.ES(test = "chisq", size = "medium")
+pwr.chisq.test(w = 0.3, power = 0.9, df = 1, sig.level = 0.05)
+```
+
+N = 116.7491, for detecting a medium effect if there is any through random sampling alone
+
+```{r}
+
+chisq.test(table(births$low_bwt, births$marital))
+```
+
+With a p-value equal to p-value = 0.0001871, there is enough evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: low_bwt and marital variables are independent  
+Alternate Hypothesis: low_bwt and marital variables are not independent  
+
+```{r}
+
+chisq.test(table(births$smoke, births$mom_age_level))
+```
+
+With a p-value equal to p-value = 0.01313, there is enough evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: smoke and mom_age_level variables are independent  
+Alternate Hypothesis: smoke and mom_age_level variables are not independent  
+```{r}
+
+chisq.test(table(births$low_bwt, births$mom_age_level))
+```
+
+With a p-value equal to p-value = 0.4961, there is not enough evidence to reject the null hypothesis and accept the alternate hypothesis  
+Null Hypothesis: low_bwt and mom_age_level variables are independent  
+Alternate Hypothesis: low_bwt and mom_age_level variables are not independent  
+
+Power test for the above chi square test:
+```{r}
+
+cohen.ES(test = "chisq", size = "small")
+pwr.chisq.test(w = 0.1, power = 0.9, df = 4, sig.level = 0.05)
+```
+
+With N=1540.505, we would need a bigger sample size for detecting a small effect if it is there through random sampling alone.
+```{r}
+
+cohen.ES(test = "chisq", size = "medium")
+pwr.chisq.test(w = 0.3, power = 0.9, df = 4, sig.level = 0.05)
+```
+
+N = 171.1672, for detecting a medium effect if there is any through random sampling alone
+
+# Linear regression model fitting birth weight as a function of predictor variables:
+```{r}
+
+fit1 <- lm(bwt ~ dad_age+mom_age+maturity+len_preg+is_premie+num_visits+marital+mom_wt_gain+low_bwt+sex+smoke+mom_white+mom_age_level, data=births)
+summary(fit1)
+plot(fit1,1)
+```
+
+Removing mom_age_level variable as it is a dichotomised version of mom_age variable with a high correlation as shown above in the script (0.974049888)
+```{r}
+
+fit2 <- lm(bwt ~ dad_age+mom_age+maturity+len_preg+is_premie+num_visits+marital+mom_wt_gain+low_bwt+sex+smoke+mom_white, data=births)
+summary(fit2)
+plot(fit2,1)
+```
+
+Removing low_bwt variable as it is a dichotomised version of bwt variable with a high correlation as shown above (-0.5441694)
+```{r}
+
+fit3 <- lm(bwt ~ dad_age+mom_age+maturity+len_preg+is_premie+num_visits+marital+mom_wt_gain+sex+smoke+mom_white, data=births)
+summary(fit3)
+plot(fit3,1)
+```
+
+Removing maturity variable as it is the most insignificant variable with a p-value of 0.707308 (Significance level of 0.05)
+```{r}
+
+fit4 <- lm(bwt ~ dad_age+mom_age+len_preg+is_premie+num_visits+marital+mom_wt_gain+sex+smoke+mom_white, data=births)
+summary(fit4)
+plot(fit4,1)
+```
+
+Removing mom_age variable as it is the most insignificant variable with a p-value of 0.791002 (Significance level of 0.05)
+```{r}
+
+fit5 <- lm(bwt ~ dad_age+len_preg+is_premie+num_visits+marital+mom_wt_gain+sex+smoke+mom_white, data=births)
+summary(fit5)
+plot(fit5,1)
+```
+
+Removing num_visits variable as it is the most insignificant variable with a p-value of 0.644700 (Significance level of 0.05)
+
+```{r}
+
+fit6 <- lm(bwt ~ dad_age+len_preg+is_premie+marital+mom_wt_gain+sex+smoke+mom_white, data=births)
+summary(fit6)
+plot(fit6,1)
+```
+
+# Final linear model   
+
+Removing dad_age variable as it is the most insignificant variable with a p-value of 0.234621 (Significance level of 0.05)  
+```{r}
+
+fit7 <- lm(bwt ~ len_preg+is_premie+marital+mom_wt_gain+sex+smoke+mom_white, data=births)
+summary(fit7)
+plot(fit7)
+```
+
+# Equation of fitted line for linear model:  
+
+bwt = 0.282229 * len_preg + (-0.523456) * is_premiepremie + (-0.247769) * maritalunmarried + 0.008355 * mom_wt_gain + 0.396837 * sexmale + (-0.383683) * smokesmoker + 0.218897 * mom_whitewhite + (-4.096698)   
+
+
+# Effect of significant variables in the final linear model on bwt variable:
+
+For every one week increase in length of pregnancy (len_preg variable), the birthweight of baby (bwt variable) increases by 0.282229 pounds on average when all other variables in the model are held constant.  
+
+For premature (is_premiepremie variable) as compared with fullterm, birthweight of baby (bwt variable) decreases by 0.523456 pounds on average when all other variables in the model are held constant.  
+
+For ummarried mother at time of birth (maritalunmarried variable) as compared with married mother at time of birth, birthweight of baby (bwt variable) decreases by 0.247769 pounds on average when all other variables in the model are held constant.  
+
+For every one pound increase in mother's weight during pregnancy (mom_wt_gain variable), the birthweight of baby (bwt variable) increases by 0.008355 pounds on average when all other variables in the model are held constant.  
+
+For male baby (sexmale variable) as compared with female baby, birthweight of baby (bwt variable) increases by 0.396837 pounds on average when all other variables in the model are held constant.  
+
+For white mother (mom_whitewhite variable) as compared with nonwhite mother, birthweight of baby (bwt variable) increases by 0.218897 pounds on average when all other variables in the model are held constant.  
+
+# Comment:  
+Even though is_premie variable is a dichotomised version of len_preg variable and has a high correlation, both the variables are present in the final model. Removing either one of the variable, resulted in a slightly worse Adjusted R-squared (0.4837) and the value of fitted coefficients were around same and hence this final model has been chosen.     
+
+
+# Logistic regression model fitting the dichotomous low birth weight variable as a function of predictor variables:
+```{r}
+
+fit_all <- glm(low_bwt ~ ., family = binomial(), data = births)
+summary(fit_all)
+```
+
+Warnings show a case of perfect linear separation.  
+```{r}
+pR2(fit_all)
+```
+
+It shows a perfect fit but the p-values of the fitted coefficients showed that the fitted coefficients are not significant.  
+McFadden = 1.000000e+00  
+r2CU = 1.000000e+00  
+```{r}
+exp(coef(fit_all))
+```
+
+The Odds Ratio for variables bwt and mom_age_level (mom_age_levelearly20s, mom_age_levellate20s, mom_age_levelearly30s, mom_age_level35+) is too large.  
+
+vif(fit_all)  
+Error: There are aliased coefficients in the model
+```{r}
+c1 <- cor(x = births_numeric$bwt, y = births_numeric$low_bwt, use = "pairwise.complete.obs", method = "spearman")
+c1
+```
+
+Removing bwt variable as it has high negative correlation with low_bwt variable (-0.5441694) and low_bwt variable is dichotomised version of bwt variables 
+```{r}
+
+fit_all2 <- glm(low_bwt ~ dad_age+mom_age+maturity+len_preg+is_premie+num_visits+marital+mom_wt_gain+sex+smoke+mom_white+mom_age_level, family = binomial(), data = births)
+summary(fit_all2)
+pR2(fit_all2)
+```
+
+vif(fit_all2) 
+Error still showing
+```{r}
+
+c2 <- cor(x=births_numeric$mom_age_level, y=births_numeric$mom_age, use = "pairwise.complete.obs", method = "spearman")
+c2
+```
+
+Hence removing mom_age_level variable, since it is a dichotomised version of mom_age # and has a very high positive correlation as shown (0.9740499)
+```{r}
+
+fit_all3 <- glm(low_bwt ~ dad_age+mom_age+maturity+len_preg+is_premie+num_visits+marital+mom_wt_gain+sex+smoke+mom_white, family = binomial(), data = births)
+summary(fit_all3)
+pR2(fit_all3)
+vif(fit_all3)  
+```
+
+No warning message of linear separation is found anymore  
+VIF is < 5  
+McFadden and r2CU values are not equal to 1   
+```{r}
+exp(cbind(OR=coef(fit_all3), confint(fit_all3)))
+```
+
+Removing num_visits variable as it is the most insignificant variable with p-value equal to 0.6702 (Significance level = 0.05)
+```{r}
+
+fit_all4 <- glm(low_bwt ~ dad_age+mom_age+maturity+len_preg+is_premie+marital+mom_wt_gain+sex+smoke+mom_white, family = binomial(), data = births)
+summary(fit_all4)
+pR2(fit_all4)
+vif(fit_all4)
+```
+
+Removing is_premie variable as it is the most insignificant variable with p-value equal to 0.5460 (Significance level = 0.05)
+```{r}
+
+fit_all5 <- glm(low_bwt ~ dad_age+mom_age+maturity+len_preg+marital+mom_wt_gain+sex+smoke+mom_white, family = binomial(), data = births)
+summary(fit_all5)
+pR2(fit_all5)
+```
+
+Removing sex variable as it is the most insignificant variable with p-value equal to 0.4524 (Significance level = 0.05)
+```{r}
+
+fit_all6 <- glm(low_bwt ~ dad_age+mom_age+maturity+len_preg+marital+mom_wt_gain+smoke+mom_white, family = binomial(), data = births)
+summary(fit_all6)
+pR2(fit_all6)
+```
+
+Removing mom_white variable as it is the most insignificant variable with p-value equal to 0.429 (Significance level = 0.05)
+```{r}
+
+fit_all6 <- glm(low_bwt ~ dad_age+mom_age+maturity+len_preg+marital+mom_wt_gain+smoke, family = binomial(), data = births)
+summary(fit_all6)
+pR2(fit_all6)
+```
+
+Removing dad_age variable as it is the most insignificant variable with p-value equal to 0.3725 (Significance level = 0.05)
+```{r}
+
+fit_all7 <- glm(low_bwt ~ mom_age+maturity+len_preg+marital+mom_wt_gain+smoke, family = binomial(), data = births)
+summary(fit_all7)
+pR2(fit_all7)
+```
+
+Removing mom_age variable as it is the most insignificant variable with p-value equal to 0.9704 (Significance level = 0.05)
+```{r}
+
+fit_all8 <- glm(low_bwt ~ maturity+len_preg+marital+mom_wt_gain+smoke, family = binomial(), data = births)
+summary(fit_all8)
+pR2(fit_all8)
+```
+
+Removing maturity variable as it is the most insignificant variable with p-value equal to 0.4594 (Significance level = 0.05)
+```{r}
+
+fit_all9 <- glm(low_bwt ~ len_preg+marital+mom_wt_gain+smoke, family = binomial(), data = births)
+summary(fit_all9)
+pR2(fit_all9)
+```
+
+Removing mom_wt_gain variable as it is the most insignificant variable with p-value equal to 0.2292 (Significance level = 0.05)
+```{r}
+
+fit_all10 <- glm(low_bwt ~ len_preg+marital+smoke, family = binomial(), data = births)
+summary(fit_all10)
+pR2(fit_all10)
+```
+
+
+# Final logistic model   
+
+Removing smoke variable as it is the most insignificant variable with p-value equal to 0.1441 (Significance level = 0.05)
+```{r}
+
+fit_all11 <- glm(low_bwt ~ len_preg+marital, family = binomial(), data = births)
+summary(fit_all11)
+pR2(fit_all11)
+exp(cbind(OR=coef(fit_all11), confint(fit_all11)))
+exp(coef(fit_all11))
+plot(fit_all11)
+```
+
+McFadden: 0.4319015  
+r2CU: 0.5181017  
+
+# Equation for fitted coefficients:  
+
+logit(low_bwt) = -0.70286 * (len_preg) + 0.66923 * (maritalunmarried) + 23.63838  
+
+# Effect of significant variables on low_bwt variable:
+
+For every one-unit increase in length of pregnancy (weeks), the odds of having baby with low birthweight (pounds) is multiplied by exp(-0.70286)= 4.951682e-01 (ie: a decrease of 49.5%) on average, when all other variables in the model are held constant. 
+
+For umarried mother at time of birth as compared with married mother at time of birth, the odds of having baby with low birthweight (pounds) is multiplied by exp(0.66923)=1.952728 (ie: an increase of 95%) on average when all other variables in the model are held constant.  
+
+# Using step function to check AIC and if we get the same significant variables as my final logistics model:   
+
+Creating new dataframe without dad_age column as it has lots of missing information:
+```{r}
+birth_2 <- births[,2:14] 
+birth_2 <- na.omit(birth_2)
+summary(birth_2)
+```
+
+```{r}
+
+fit_null <- glm(low_bwt ~ 1, family = binomial(), data = birth_2)
+summary(fit_null)
+```
+
+Removing mom_age_level variable, since it is a dichotomised version of mom_age and has a very high positive correlation as shown (0.9740499)  
+Removing bwt variable as it has high negative correlation with low_bwt variable (-0.5441694) and low_bwt variable is dichotomised version of bwt variable  
+```{r}
+
+fit_main <- glm(low_bwt ~ mom_age+len_preg+num_visits+mom_wt_gain+maturity+is_premie+smoke+marital+mom_white+sex, family = binomial(), data = birth_2)
+summary(fit_main)
+
+fit_step1 <- step(fit_null, scope=list(lower=fit_null, upper=fit_main),direction="both")
+summary(fit_step1)
+```
+
+# Comment:  
+Even if we keep mom_age_level variable as the predictor variable for step function, we would still be getting the same results (AIC, significant variables) as we got without mom_age_level variable. This result of the step function is found to be consistent with my final logistic model (with same significant variables and similar fitted coefficients) except for the smoke variable which is not a significant variable in my final model as its p-value is greater than significance level of 0.05
