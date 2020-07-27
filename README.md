@@ -1,6 +1,8 @@
 # Data Analysis and Modeling
 Data Analysis and Modeling using R
 
+# NOTE: To see the HTML output of this project (R Markdown code + Output from plots), click on https://dashyanngkachru.github.io/dashyanngkachru.github.io_DataAnalysis_and_Modeling_toCheck_effectOn_birthweight_of_baby/
+
 ## Dataset variables (1000 births):
 
 dad_age - age of father of baby (years)
