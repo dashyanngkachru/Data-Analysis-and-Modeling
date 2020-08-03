@@ -1,7 +1,7 @@
 # Data Analysis and Modeling
 Data Analysis and Modeling using R
 
-# NOTE: Kindly click on https://dashyanngkachru.github.io/dashyanngkachru.github.io_DataAnalysis_and_Modeling_toCheck_effectOn_birthweight_of_baby/ to see the HTML output of this project (R Markdown code + Output from plots)
+# NOTE: Kindly click on https://dashyanngkachru.github.io/dashyanngkachru.github.io_Data_Analysis_and_Modeling_to_check_effect_on_Birthweight_of_Baby/ to see the HTML output of this project (R Markdown code + Output from plots)
 
 ## Dataset variables (1000 births):
 
